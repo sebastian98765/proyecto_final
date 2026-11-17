@@ -1,0 +1,3 @@
+package com.hoteluq.model;
+import java.time.LocalDate;
+public class PointsLot {private final int original;private int remaining;private final LocalDate earned,expires;public PointsLot(int points,LocalDate earned){if(points<=0)throw new IllegalArgumentException();this.original=points;this.remaining=points;this.earned=earned;this.expires=earned.plusYears(1);}public int getRemaining(){return remaining;}public LocalDate getExpires(){return expires;}public boolean isValid(LocalDate date){return date.isBefore(expires)&&remaining>0;}public void consume(int n){if(n<0||n>remaining)throw new IllegalArgumentException();remaining-=n;}public int getOriginal(){return original;}public LocalDate getEarned(){return earned;}}
