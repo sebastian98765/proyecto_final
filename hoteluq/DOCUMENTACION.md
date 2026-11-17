@@ -80,3 +80,12 @@ ReservationService --> ReservationObserver
 
 ## Limitaciones y siguientes incrementos
 La entrega es una base académica ejecutable con almacenamiento en memoria. Para completar un despliegue comercial se requiere base de datos, autenticación con contraseñas hasheadas, control transaccional de concurrencia, integración real de pagos, PDF, dashboard JavaFX de gráficos y CRUD completo de administración. La interfaz inicial demuestra reserva, cobro y consulta; los servicios de dominio contienen los puntos de extensión para implementar el resto sin mezclar capas.
+
+## Avance 2 — habitaciones y clientes
+- Se amplió Factory Method con `RoomCreator` y fábricas concretas para habitaciones estándar, familiares y suite.
+- `RoomService` centraliza altas, consultas, actualización, activación/desactivación y eliminación controlada de habitaciones.
+- `UserRepository` permite consultar usuarios por correo sin distinguir mayúsculas.
+- `AuthService` registra clientes, autentica credenciales y valida permisos de administrador.
+- `PasswordHasher` utiliza PBKDF2-HMAC-SHA256 con salt aleatorio; las contraseñas no se almacenan en texto plano.
+- Se agregaron pruebas para fábrica, CRUD de habitaciones, autenticación, correo duplicado y autorización.
+- La persistencia continúa siendo en memoria; las cuentas y credenciales se reinician al cerrar la aplicación. La autenticación es una base académica, no un sistema listo para producción.

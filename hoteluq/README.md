@@ -8,7 +8,7 @@ Aplicación base funcional en Java 21, Maven y JavaFX, organizada bajo MVC. Incl
 3. Ejecutar `mvn clean test`.
 4. Ejecutar la interfaz con `mvn javafx:run`.
 
-Usuario de demostración: `admin@hoteluq.com` (rol administrador) y `cliente@hoteluq.com` (rol cliente). La autenticación de esta versión académica es demostrativa; antes de producción se debe incorporar persistencia y hash seguro de contraseñas.
+Usuarios de demostración: `admin@hoteluq.com` / `admin123` (administrador) y `cliente@hoteluq.com` / `cliente123` (cliente). Las contraseñas se almacenan mediante PBKDF2-HMAC-SHA256 con salt aleatorio. La autenticación y los datos siguen siendo en memoria y se reinician al cerrar la aplicación.
 
 ## Arquitectura
 - `model`: entidades y enumeraciones.
@@ -32,3 +32,13 @@ Factory Method crea tipos de habitación; Builder compone reservas; Singleton ce
 - Promoción de demostración: 10% si reserva al menos 3 noches.
 
 Los datos se guardan en memoria y se reinician al cerrar la aplicación. Para un despliegue real se debe conectar una base de datos y un proveedor de pagos real.
+
+
+## Avance 2 — gestión de habitaciones y clientes
+- Gestión de habitaciones en `RoomService`: crear, consultar, actualizar, activar, desactivar y eliminar de forma controlada.
+- Factory Method separado en `RoomCreator`, `StandardRoomCreator`, `FamilyRoomCreator` y `SuiteRoomCreator`; `RoomFactory` mantiene compatibilidad con las llamadas existentes.
+- `UserRepository` permite consultar usuarios por correo.
+- `AuthService` implementa registro de clientes, autenticación y autorización por rol.
+- `PasswordHasher` protege las contraseñas mediante PBKDF2-HMAC-SHA256 y salt aleatorio.
+- `HotelController` expone los casos de uso para que la vista no acceda directamente a repositorios.
+- Pruebas nuevas: `RoomAndAuthServiceTest`.
