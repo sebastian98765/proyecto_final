@@ -1,44 +1,62 @@
-# HotelUQ — Programación II
+# HotelUQ — Sistema Integral de Gestión Hotelera
 
-Aplicación base funcional en Java 21, Maven y JavaFX, organizada bajo MVC. Incluye dominio, reglas de negocio, repositorios en memoria, pruebas JUnit 5, reportes TXT y diez patrones de diseño.
+Proyecto académico de Programación II desarrollado con **Java 21, JavaFX, Maven y JUnit 5**, con arquitectura MVC y repositorios en memoria.
 
-## Ejecutar
-1. Instalar JDK 21 y Maven.
-2. Abrir la carpeta `hotel-uq` desde IntelliJ IDEA como proyecto Maven.
-3. Ejecutar `mvn clean test`.
-4. Ejecutar la interfaz con `mvn javafx:run`.
+## Requisitos y ejecución
 
-Usuarios de demostración: `admin@hoteluq.com` / `admin123` (administrador) y `cliente@hoteluq.com` / `cliente123` (cliente). Las contraseñas se almacenan mediante PBKDF2-HMAC-SHA256 con salt aleatorio. La autenticación y los datos siguen siendo en memoria y se reinician al cerrar la aplicación.
+- JDK 21 y Maven instalados y configurados.
+- Abrir la carpeta **hoteluq** (la que contiene `pom.xml`) en IntelliJ IDEA.
+- Ejecutar `mvn clean test` para comprobar las pruebas.
+- Ejecutar `mvn javafx:run` para iniciar la interfaz gráfica.
 
-## Arquitectura
-- `model`: entidades y enumeraciones.
-- `repository`: contratos y repositorios en memoria (DIP).
-- `service`: casos de uso y reglas de negocio.
-- `pattern/creational`: Factory Method, Builder y Singleton.
-- `pattern/structural`: Facade, Adapter, Decorator y Proxy.
-- `pattern/behavioral`: Strategy, Observer y State.
-- `controller` y `view`: MVC + JavaFX.
-- `report`: exportación TXT.
+## Usuarios de demostración
 
-## Patrones implementados
-Factory Method crea tipos de habitación; Builder compone reservas; Singleton centraliza configuración; Facade orquesta reservas; Adapter desacopla pasarelas; Decorator agrega servicios; Proxy protege operaciones administrativas; Strategy intercambia políticas de cancelación/promoción; Observer notifica eventos; State controla el ciclo de vida de reservas.
+| Rol | Correo | Contraseña |
+| --- | --- | --- |
+| Administrador | admin@hoteluq.com | admin123 |
+| Cliente | cliente@hoteluq.com | cliente123 |
 
-## Reglas académicas adoptadas
-- Noche = precio por noche × noches.
-- Intervalos de ocupación: [entrada, salida), por lo que una salida y una nueva entrada el mismo día no se superponen.
-- Cancelación: más de 72 h = 100%; entre 24 y 72 h inclusive = 80%; menos de 24 h = 0%. Cancelación por hotel = 100%.
-- Acumulación: 100 puntos por cada $100.000 COP pagados (redondeo hacia abajo).
-- Puntos vencen al cumplirse un año; se consumen primero los que vencen antes.
-- Promoción de demostración: 10% si reserva al menos 3 noches.
+**Atención:** son credenciales exclusivamente de demostración. Los datos y usuarios se almacenan en memoria; al reiniciar la aplicación se pierde el estado. El cliente demo inicia con una recarga de COP $3.000.000.
 
-Los datos se guardan en memoria y se reinician al cerrar la aplicación. Para un despliegue real se debe conectar una base de datos y un proveedor de pagos real.
+## Funcionalidades
 
+- Autenticación, registro de clientes y autorización por rol.
+- Administración de habitaciones: creación, actualización, activación y desactivación.
+- Reservas con control de disponibilidad por fechas y estados pendiente, confirmada y cancelada.
+- Servicios adicionales configurables (desayuno, parqueadero, spa y transporte).
+- Tarjeta virtual: recargas, cobros, reembolsos, consulta de movimientos y bloqueo/activación.
+- Fidelización: 1 punto por cada COP $10.000 pagados; 1 punto equivale a COP $1.000 de descuento; pago mínimo de COP $1.000; vencimiento anual.
+- Cancelación de reservas y tratamiento de reembolsos y puntos.
+- Reportes administrativos de reservas, ingresos estimados por reservas confirmadas y ocupación; exportación TXT.
+- Interfaz JavaFX y pruebas automatizadas JUnit 5.
 
-## Avance 2 — gestión de habitaciones y clientes
-- Gestión de habitaciones en `RoomService`: crear, consultar, actualizar, activar, desactivar y eliminar de forma controlada.
-- Factory Method separado en `RoomCreator`, `StandardRoomCreator`, `FamilyRoomCreator` y `SuiteRoomCreator`; `RoomFactory` mantiene compatibilidad con las llamadas existentes.
-- `UserRepository` permite consultar usuarios por correo.
-- `AuthService` implementa registro de clientes, autenticación y autorización por rol.
-- `PasswordHasher` protege las contraseñas mediante PBKDF2-HMAC-SHA256 y salt aleatorio.
-- `HotelController` expone los casos de uso para que la vista no acceda directamente a repositorios.
-- Pruebas nuevas: `RoomAndAuthServiceTest`.
+## Reglas de cancelación
+
+La política estándar devuelve el **100 %** cuando faltan más de 72 horas para la entrada, el **80 %** entre 24 y 72 horas (inclusive), y **0 %** cuando faltan menos de 24 horas. La cancelación por el hotel devuelve el 100 % del valor pagado. La implementación calcula horas completas mediante `Duration.toHours()`.
+
+## Estructura del código
+
+| Paquete | Responsabilidad |
+| --- | --- |
+| `app` | Inicio de la aplicación |
+| `model` | Entidades, puntos y billetera |
+| `repository` | Repositorios en memoria |
+| `service` | Reglas de negocio, catálogo y reportes |
+| `controller` | Coordinación MVC |
+| `view` | Pantallas JavaFX |
+| `pattern/creational` | Factory Method, Builder, Singleton |
+| `pattern/structural` | Facade, Adapter, Decorator, Proxy |
+| `pattern/behavioral` | Strategy, Observer, State |
+| `security` | Hash de contraseñas |
+
+## Patrones de diseño
+
+Consulte `docs/PATRONES_Y_ARQUITECTURA.md` y los diagramas PlantUML de `docs/uml/`.
+
+## Pruebas y entrega
+
+Ejecute `mvn clean test` y verifique `BUILD SUCCESS`. En la ejecución reportada por el estudiante del sexto avance pasaron **56 pruebas**, pero **esta copia final no ha sido reejecutada en este entorno**. Valide también manualmente el inicio de sesión, la reserva como cliente, los reportes como administrador y la exportación TXT.
+
+## Limitaciones
+
+Aplicación académica: no usa base de datos ni pasarela de pago externa. Los reportes de ingresos se basan en los totales de reservas confirmadas, no en contabilidad bancaria. No se garantiza transaccionalidad completa ante fallos intermedios en pagos, cancelaciones y puntos. No utilizar con dinero real ni datos sensibles de producción.

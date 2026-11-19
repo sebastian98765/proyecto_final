@@ -1,0 +1,24 @@
+@startuml
+class User
+class Wallet
+class PointsAccount
+class PointsLot
+class Room
+class Reservation
+class AdditionalService
+interface PaymentGateway
+class WalletPaymentAdapter
+interface CancellationPolicy
+class StandardCancellationPolicy
+class HotelCancellationPolicy
+User *-- Wallet
+User *-- PointsAccount
+PointsAccount *-- "0..*" PointsLot
+Reservation --> User : customer
+Reservation --> Room : room
+Reservation --> "0..*" AdditionalService : services
+WalletPaymentAdapter ..|> PaymentGateway
+WalletPaymentAdapter --> Wallet
+StandardCancellationPolicy ..|> CancellationPolicy
+HotelCancellationPolicy ..|> CancellationPolicy
+@enduml

@@ -1,0 +1,23 @@
+@startuml
+skinparam componentStyle rectangle
+actor Cliente
+actor Administrador
+component "HotelView (JavaFX)" as View
+component "HotelController" as Controller
+component "ReservationFacade" as Facade
+component "ReservationService" as Reservations
+component "LoyaltyService" as Loyalty
+component "RoomService" as Rooms
+component "ReportService" as Reports
+component "Repositorios en memoria" as Repos
+Cliente --> View
+Administrador --> View
+View --> Controller
+Controller --> Facade
+Controller --> Rooms
+Controller --> Reports
+Facade --> Reservations
+Reservations --> Loyalty
+Reservations --> Repos
+Rooms --> Repos
+@enduml
