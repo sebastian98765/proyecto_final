@@ -21,12 +21,16 @@ import com.hoteluq.service.RoomService;
 import com.hoteluq.exception.BusinessException;
 import com.hoteluq.pattern.structural.AdminOperationsProxy;
 import com.hoteluq.service.LoyaltyService;
+import com.hoteluq.service.AdditionalServiceCatalog;
+import com.hoteluq.service.ReportService;
 
 import java.time.LocalDate;
 import java.util.List;
 
 /** Controlador MVC: coordina los casos de uso sin trasladar reglas a la vista. */
 public class HotelController {
+    private final AdditionalServiceCatalog serviceCatalog = new AdditionalServiceCatalog();
+    private final ReportService reportService = new ReportService();
     private final RoomRepository rooms = new RoomRepository();
     private final ReservationRepository reservations = new ReservationRepository();
     private final UserRepository users = new UserRepository();
@@ -95,12 +99,39 @@ public class HotelController {
     public void cerrarSesion() {
         usuarioActual = null;
     }
+    public List<AdditionalService> additionalServices() { return serviceCatalog.all(); }
+
+    public AdditionalService saveAdditionalService(String name, double price, boolean available) {
+        requireCurrentAdmin();
+        return serviceCatalog.save(name, price, available);
+    }
+
+    private void requireCurrentAdmin() {
+        if (usuarioActual == null) throw new SecurityException("Debes iniciar sesión");
+        authService.requireAdministrator(usuarioActual);
+    }
+
+    public String reservationReport(LocalDate from, LocalDate to) {
+        requireCurrentAdmin();
+        return reportService.summary(reservationService.all(), from, to);
+    }
+
+    public String occupancyReport(LocalDate from, LocalDate to) {
+        requireCurrentAdmin();
+        return reportService.occupancy(reservationService.all(), rooms.findAll(), from, to);
+    }
+
     public Reservation createDemoReservation(String roomNumber, LocalDate in, LocalDate out) {
+        return createDemoReservation(roomNumber, in, out, List.of("Desayuno"));
+    }
+
+    public Reservation createDemoReservation(String roomNumber, LocalDate in, LocalDate out,
+                                             List<String> serviceNames) {
         Room room = roomService.getByNumber(roomNumber);
         if (!room.isActive()) throw new BusinessException("La habitación no está disponible para reservar.");
         ReservationFacade facade = new ReservationFacade(reservationService);
         return facade.book(client, room, in, out,
-                List.of(new AdditionalService("Desayuno", 35_000, true)),
+                serviceCatalog.select(serviceNames),
                 new WalletPaymentAdapter(client.getWallet()));
     }
     /**
@@ -109,6 +140,16 @@ public class HotelController {
      * Cada punto equivale a $1.000 de descuento.
      * El cliente debe pagar al menos $1.000 con su tarjeta.
      */
+    public Reservation createDemoReservationWithPoints(String roomNumber, LocalDate in, LocalDate out,
+                                                       int points, List<String> serviceNames) {
+        if (usuarioActual != client) throw new SecurityException("Solo cliente demo");
+        if (points <= 0) throw new BusinessException("Debes utilizar al menos un punto");
+        Room room = roomService.getByNumber(roomNumber);
+        if (!room.isActive()) throw new BusinessException("Habitación inactiva");
+        return new ReservationFacade(reservationService).bookWithPoints(client, room, in, out,
+                serviceCatalog.select(serviceNames), new WalletPaymentAdapter(client.getWallet()), points);
+    }
+
     public Reservation createDemoReservationWithPoints(
             String roomNumber,
             LocalDate in,
@@ -116,9 +157,7 @@ public class HotelController {
             int puntosUtilizados
     ) {
         if (usuarioActual == null) {
-            throw new SecurityException(
-                    "Debes iniciar sesión para reservar"
-            );
+            throw new SecurityException("Debes iniciar sesión para reservar");
         }
 
         if (usuarioActual != client) {

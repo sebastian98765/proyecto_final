@@ -14,6 +14,9 @@ import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
 import java.time.LocalDate;
+import java.nio.file.Path;
+import javafx.stage.FileChooser;
+import java.util.stream.Collectors;
 
 public class HotelView extends Application {
 
@@ -116,6 +119,27 @@ public class HotelView extends Application {
         output.setEditable(false);
         output.setPrefHeight(230);
 
+        Label tituloServicios = new Label("Servicios adicionales");
+        tituloServicios.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        VBox listaServicios = new VBox(5);
+        java.util.List<CheckBox> opcionesServicios = new java.util.ArrayList<>();
+        Runnable actualizarServicios = () -> {
+            listaServicios.getChildren().clear();
+            opcionesServicios.clear();
+            controller.additionalServices().stream().filter(com.hoteluq.model.AdditionalService::available)
+                    .forEach(servicio -> {
+                        CheckBox opcion = new CheckBox(servicio.name() + " ($" + servicio.price() + ")");
+                        opcion.setUserData(servicio.name());
+                        if (servicio.name().equalsIgnoreCase("Desayuno")) opcion.setSelected(true);
+                        opcionesServicios.add(opcion);
+                        listaServicios.getChildren().add(opcion);
+                    });
+        };
+        actualizarServicios.run();
+        java.util.function.Supplier<java.util.List<String>> seleccionServicios = () ->
+                opcionesServicios.stream().filter(CheckBox::isSelected)
+                        .map(c -> (String) c.getUserData()).toList();
+
         // RESERVAS
         Button reservar = new Button("Reservar y pagar");
 
@@ -145,7 +169,8 @@ public class HotelView extends Application {
                 Reservation reserva = controller.createDemoReservation(
                         numero,
                         entrada.getValue(),
-                        salida.getValue()
+                        salida.getValue(),
+                        seleccionServicios.get()
                 );
 
                 output.appendText(
@@ -164,6 +189,31 @@ public class HotelView extends Application {
         });
 
         reservar.setDisable(esAdmin);
+
+        TextField puntos = new TextField("0");
+        puntos.setPromptText("Puntos a utilizar");
+        puntos.setPrefWidth(110);
+        Button consultarPuntos = new Button("Ver mis puntos");
+        consultarPuntos.setDisable(esAdmin);
+        consultarPuntos.setOnAction(e -> output.appendText(
+                "Puntos disponibles: " + controller.consultarPuntosCliente() + "\n\n"));
+        Button reservarConPuntos = new Button("Reservar con puntos");
+        reservarConPuntos.setDisable(esAdmin);
+        reservarConPuntos.setOnAction(e -> {
+            try {
+                if (habitaciones.getValue() == null) throw new IllegalArgumentException("Selecciona habitación");
+                int cantidad = Integer.parseInt(puntos.getText().trim());
+                Reservation reserva = controller.createDemoReservationWithPoints(
+                        habitaciones.getValue().split(" - ")[0], entrada.getValue(), salida.getValue(),
+                        cantidad, seleccionServicios.get());
+                output.appendText("Reserva con puntos confirmada: " + reserva.getId()
+                        + "\nTotal pagado: $" + reserva.getTotal()
+                        + "\nPuntos usados: " + reserva.getPuntosUtilizados()
+                        + "\nPuntos disponibles: " + controller.consultarPuntosCliente() + "\n\n");
+            } catch (NumberFormatException ex) {
+                mostrarError("Ingresa un número entero de puntos");
+            } catch (Exception ex) { mostrarError(ex.getMessage()); }
+        });
 
         Button consultarReservas = new Button("Consultar reservas");
 
@@ -316,7 +366,10 @@ public class HotelView extends Application {
                 entrada,
                 new Label("Fecha de salida"),
                 salida,
+                tituloServicios,
+                listaServicios,
                 new HBox(10, reservar, consultarReservas),
+                new HBox(10, puntos, reservarConPuntos, consultarPuntos),
                 new Separator(),
                 tituloTarjeta,
                 new HBox(10, consultarSaldo, movimientos),
@@ -324,6 +377,58 @@ public class HotelView extends Application {
         );
 
         if (esAdmin) {
+            Label tituloReportes = new Label("Reportes administrativos");
+            tituloReportes.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+            DatePicker desde = new DatePicker(LocalDate.now().minusMonths(1));
+            DatePicker hasta = new DatePicker(LocalDate.now().plusMonths(1));
+            Button reporteReservas = new Button("Reporte de reservas e ingresos");
+            Button reporteOcupacion = new Button("Reporte de ocupación");
+            Button exportar = new Button("Exportar reporte TXT");
+            final String[] ultimoReporte = {""};
+            reporteReservas.setOnAction(e -> {
+                try { ultimoReporte[0] = controller.reservationReport(desde.getValue(), hasta.getValue());
+                    output.setText(ultimoReporte[0]); }
+                catch (Exception ex) { mostrarError(ex.getMessage()); }
+            });
+            reporteOcupacion.setOnAction(e -> {
+                try { ultimoReporte[0] = controller.occupancyReport(desde.getValue(), hasta.getValue());
+                    output.setText(ultimoReporte[0]); }
+                catch (Exception ex) { mostrarError(ex.getMessage()); }
+            });
+            exportar.setOnAction(e -> {
+                try {
+                    if (ultimoReporte[0].isBlank()) throw new IllegalStateException("Genera primero un reporte");
+                    FileChooser chooser = new FileChooser();
+                    chooser.setInitialFileName("reporte_hoteluq.txt");
+                    chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Texto", "*.txt"));
+                    java.io.File file = chooser.showSaveDialog(ventanaPrincipal);
+                    if (file != null) {
+                        new com.hoteluq.service.ReportService().exportTxt(ultimoReporte[0], file.toPath());
+                        output.appendText("\nReporte exportado: " + file.getAbsolutePath() + "\n");
+                    }
+                } catch (Exception ex) { mostrarError(ex.getMessage()); }
+            });
+            TextField nombreServicio = new TextField(); nombreServicio.setPromptText("Nombre del servicio");
+            TextField precioServicio = new TextField(); precioServicio.setPromptText("Precio COP");
+            CheckBox disponible = new CheckBox("Disponible"); disponible.setSelected(true);
+            Button guardarServicio = new Button("Guardar servicio");
+            guardarServicio.setOnAction(e -> {
+                try {
+                    controller.saveAdditionalService(nombreServicio.getText(),
+                            Double.parseDouble(precioServicio.getText().trim()), disponible.isSelected());
+                    actualizarServicios.run();
+                    output.appendText("Servicio guardado: " + nombreServicio.getText() + "\n");
+                    nombreServicio.clear(); precioServicio.clear();
+                } catch (Exception ex) { mostrarError(ex.getMessage()); }
+            });
+            root.getChildren().addAll(
+                    new Label("Administración de servicios"),
+                    new HBox(10, nombreServicio, precioServicio, disponible, guardarServicio),
+                    new Separator(), tituloReportes,
+                    new HBox(10, new Label("Desde"), desde, new Label("Hasta"), hasta),
+                    new HBox(10, reporteReservas, reporteOcupacion, exportar),
+                    new Separator()
+            );
             root.getChildren().addAll(
                     tituloAdmin,
                     new HBox(10, monto, recargar),
