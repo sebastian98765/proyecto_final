@@ -20,6 +20,7 @@ import com.hoteluq.service.ReservationService;
 import com.hoteluq.service.RoomService;
 import com.hoteluq.exception.BusinessException;
 import com.hoteluq.pattern.structural.AdminOperationsProxy;
+import com.hoteluq.service.LoyaltyService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -30,6 +31,7 @@ public class HotelController {
     private final ReservationRepository reservations = new ReservationRepository();
     private final UserRepository users = new UserRepository();
     private final ReservationService reservationService = new ReservationService(reservations);
+    private final LoyaltyService loyaltyService = new LoyaltyService();
     private final RoomService roomService = new RoomService(rooms, new RoomFactory());
     private final AuthService authService = new AuthService(users, new PasswordHasher());
     private final User admin;
@@ -101,6 +103,63 @@ public class HotelController {
                 List.of(new AdditionalService("Desayuno", 35_000, true)),
                 new WalletPaymentAdapter(client.getWallet()));
     }
+    /**
+     * Crea una reserva de demostración utilizando puntos.
+     *
+     * Cada punto equivale a $1.000 de descuento.
+     * El cliente debe pagar al menos $1.000 con su tarjeta.
+     */
+    public Reservation createDemoReservationWithPoints(
+            String roomNumber,
+            LocalDate in,
+            LocalDate out,
+            int puntosUtilizados
+    ) {
+        if (usuarioActual == null) {
+            throw new SecurityException(
+                    "Debes iniciar sesión para reservar"
+            );
+        }
+
+        if (usuarioActual != client) {
+            throw new SecurityException(
+                    "Esta operación está disponible para el cliente demo"
+            );
+        }
+
+        if (puntosUtilizados <= 0) {
+            throw new BusinessException(
+                    "Debes utilizar al menos un punto"
+            );
+        }
+
+        Room room = roomService.getByNumber(roomNumber);
+
+        if (!room.isActive()) {
+            throw new BusinessException(
+                    "La habitación no está disponible para reservar"
+            );
+        }
+
+        ReservationFacade facade =
+                new ReservationFacade(reservationService);
+
+        return facade.bookWithPoints(
+                client,
+                room,
+                in,
+                out,
+                List.of(
+                        new AdditionalService(
+                                "Desayuno",
+                                35_000,
+                                true
+                        )
+                ),
+                new WalletPaymentAdapter(client.getWallet()),
+                puntosUtilizados
+        );
+    }
 
     public List<Reservation> reservations() { return reservationService.all(); }
     public Wallet wallet() {
@@ -157,5 +216,19 @@ public class HotelController {
         }
 
         cliente.getWallet().setActive(true);
+    }
+
+    public int consultarPuntosCliente() {
+        return loyaltyService.consultarPuntos(client);
+    }
+
+    public double consultarDescuentoPuntos(int puntos) {
+        if (puntos > consultarPuntosCliente()) {
+            throw new BusinessException(
+                    "No tienes suficientes puntos disponibles"
+            );
+        }
+
+        return loyaltyService.calcularDescuento(puntos);
     }
 }

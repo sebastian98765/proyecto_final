@@ -72,4 +72,66 @@ public class ReservationFacade {
         service.confirmReservation(reservation, payment);
         return reservation;
     }
+
+    /**
+     * Crea una reserva utilizando puntos de fidelización.
+     * Cada punto equivale a $1.000 COP de descuento.
+     */
+    public Reservation bookWithPoints(
+            User user,
+            Room room,
+            LocalDate in,
+            LocalDate out,
+            List<AdditionalService> extras,
+            PaymentGateway payment,
+            int puntosUtilizados
+    ) {
+        Objects.requireNonNull(user, "El cliente es obligatorio");
+        Objects.requireNonNull(room, "La habitación es obligatoria");
+        Objects.requireNonNull(in, "La fecha de entrada es obligatoria");
+        Objects.requireNonNull(out, "La fecha de salida es obligatoria");
+        Objects.requireNonNull(extras, "Los servicios son obligatorios");
+        Objects.requireNonNull(payment, "El medio de pago es obligatorio");
+
+        if (puntosUtilizados <= 0) {
+            throw new IllegalArgumentException(
+                    "Debes utilizar al menos un punto"
+            );
+        }
+
+        ReservationBuilder builder = new ReservationBuilder()
+                .customer(user)
+                .room(room)
+                .dates(in, out);
+
+        extras.forEach(builder::addService);
+
+        Reservation draft = builder.build();
+
+        double descuento = puntosUtilizados * 1_000.0;
+        double totalPagar = draft.getTotal() - descuento;
+
+        if (totalPagar < 1_000) {
+            throw new IllegalArgumentException(
+                    "Debes pagar al menos $1.000 con la tarjeta virtual"
+            );
+        }
+
+        Reservation reservation = new Reservation(
+                user,
+                room,
+                in,
+                out,
+                extras,
+                totalPagar
+        );
+
+        service.confirmReservation(
+                reservation,
+                payment,
+                puntosUtilizados
+        );
+
+        return reservation;
+    }
 }
